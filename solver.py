@@ -280,54 +280,109 @@ class Solver:
         cloned.cost = self.sol.cost
         return cloned
 
-    def FindBestSwapMove(self, sm):
+        def FindBestSwapMove(self, sm):
+        heap = []
+
         for firstRouteIndex in range(0, len(self.sol.routes)):
             rt1: Route = self.sol.routes[firstRouteIndex]
-            pr1 = rt1.cost
             for secondRouteIndex in range(firstRouteIndex, len(self.sol.routes)):
                 rt2: Route = self.sol.routes[secondRouteIndex]
-                pr2 = rt2.cost
+
                 for firstNodeIndex in range(1, len(rt1.sequenceOfNodes) - 1):
                     startOfSecondNodeIndex = 1
                     if rt1 == rt2:
                         startOfSecondNodeIndex = firstNodeIndex + 1
+
                     for secondNodeIndex in range(startOfSecondNodeIndex, len(rt2.sequenceOfNodes) - 1):
 
+                        a1 = rt1.sequenceOfNodes[firstNodeIndex - 1]
                         b1 = rt1.sequenceOfNodes[firstNodeIndex]
+                        c1 = rt1.sequenceOfNodes[firstNodeIndex + 1]
 
+                        a2 = rt2.sequenceOfNodes[secondNodeIndex - 1]
                         b2 = rt2.sequenceOfNodes[secondNodeIndex]
+                        c2 = rt2.sequenceOfNodes[secondNodeIndex + 1]
 
-                        if rt1 != rt2:
-                            # Handle different-route swap
-                            if rt1.load - b1.demand + b2.demand > self.capacity or \
-                               rt2.load - b2.demand + b1.demand > self.capacity:
+                        moveCost = None
+                        moveCost_penalized = None
+                        costChangeFirstRoute = None
+                        costChangeSecondRoute = None
+
+                        if rt1 == rt2:
+                            if firstNodeIndex == secondNodeIndex - 1:
+                                
+                                costRemoved = self.distance_matrix[a1.ID][b1.ID] + self.distance_matrix[b1.ID][b2.ID] + \
+                                              self.distance_matrix[b2.ID][c2.ID]
+                                costAdded = self.distance_matrix[a1.ID][b2.ID] + self.distance_matrix[b2.ID][b1.ID] + \
+                                            self.distance_matrix[b1.ID][c2.ID]
+                                moveCost = costAdded - costRemoved
+
+                                costRemoved_penalized = self.distance_matrix_penalized[a1.ID][b1.ID] + \
+                                                        self.distance_matrix_penalized[b1.ID][b2.ID] + \
+                                                        self.distance_matrix_penalized[b2.ID][c2.ID]
+                                costAdded_penalized = self.distance_matrix_penalized[a1.ID][b2.ID] + \
+                                                      self.distance_matrix_penalized[b2.ID][b1.ID] + \
+                                                      self.distance_matrix_penalized[b1.ID][c2.ID]
+                                moveCost_penalized = costAdded_penalized - costRemoved_penalized
+                            else:
+                                
+                                costRemoved1 = self.distance_matrix[a1.ID][b1.ID] + self.distance_matrix[b1.ID][c1.ID]
+                                costAdded1 = self.distance_matrix[a1.ID][b2.ID] + self.distance_matrix[b2.ID][c1.ID]
+                                costRemoved2 = self.distance_matrix[a2.ID][b2.ID] + self.distance_matrix[b2.ID][c2.ID]
+                                costAdded2 = self.distance_matrix[a2.ID][b1.ID] + self.distance_matrix[b1.ID][c2.ID]
+                                moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2)
+                                costRemoved1_penalized = self.distance_matrix_penalized[a1.ID][b1.ID] + \
+                                                         self.distance_matrix_penalized[b1.ID][c1.ID]
+                                costAdded1_penalized = self.distance_matrix_penalized[a1.ID][b2.ID] + \
+                                                       self.distance_matrix_penalized[b2.ID][c1.ID]
+                                costRemoved2_penalized = self.distance_matrix_penalized[a2.ID][b2.ID] + \
+                                                         self.distance_matrix_penalized[b2.ID][c2.ID]
+                                costAdded2_penalized = self.distance_matrix_penalized[a2.ID][b1.ID] + \
+                                                       self.distance_matrix_penalized[b1.ID][c2.ID]
+                                moveCost_penalized = costAdded1_penalized + costAdded2_penalized - (
+                                            costRemoved1_penalized + costRemoved2_penalized)
+                        else:
+                            
+                            if rt1.load - b1.demand + b2.demand > self.capacity:
+                                continue
+                            if rt2.load - b2.demand + b1.demand > self.capacity:
                                 continue
 
-                            rt1.sequenceOfNodes[firstNodeIndex] = b2
-                            rt2.sequenceOfNodes[secondNodeIndex] = b1
-                            cost1, d1 = self.calculate_route_details(rt1.sequenceOfNodes, 6)
-                            cost2, d2 = self.calculate_route_details(rt2.sequenceOfNodes, 6)
-                            rt1.sequenceOfNodes[firstNodeIndex] = b1
-                            rt2.sequenceOfNodes[secondNodeIndex] = b2
-                            costChangeFirstRoute = - pr1 + cost1
-                            costChangeSecondRoute = - pr2 + cost2
-                            moveCost = - pr1 - pr2 + cost1 + cost2
-                        else:
-                            rt1.sequenceOfNodes[firstNodeIndex] = b2
-                            rt1.sequenceOfNodes[secondNodeIndex] = b1
-                            cost1, d1 = self.calculate_route_details(rt1.sequenceOfNodes, 6)
-                            rt1.sequenceOfNodes[firstNodeIndex] = b1
-                            rt1.sequenceOfNodes[secondNodeIndex] = b2
-                            moveCost = - pr1 + cost1
-                            cost2 = cost1
-                            costChangeFirstRoute = - pr1 + cost1
-                            costChangeSecondRoute = - pr2 + cost2
+                            costRemoved1 = self.distance_matrix[a1.ID][b1.ID] + self.distance_matrix[b1.ID][c1.ID]
+                            costAdded1 = self.distance_matrix[a1.ID][b2.ID] + self.distance_matrix[b2.ID][c1.ID]
+                            costRemoved2 = self.distance_matrix[a2.ID][b2.ID] + self.distance_matrix[b2.ID][c2.ID]
+                            costAdded2 = self.distance_matrix[a2.ID][b1.ID] + self.distance_matrix[b1.ID][c2.ID]
+                            costRemoved1_penalized = self.distance_matrix_penalized[a1.ID][b1.ID] + \
+                                                     self.distance_matrix_penalized[b1.ID][c1.ID]
+                            costAdded1_penalized = self.distance_matrix_penalized[a1.ID][b2.ID] + \
+                                                   self.distance_matrix_penalized[b2.ID][c1.ID]
+                            costRemoved2_penalized = self.distance_matrix_penalized[a2.ID][b2.ID] + \
+                                                     self.distance_matrix_penalized[b2.ID][c2.ID]
+                            costAdded2_penalized = self.distance_matrix_penalized[a2.ID][b1.ID] + \
+                                                   self.distance_matrix_penalized[b1.ID][c2.ID]
 
-                        if moveCost < sm.moveCost and abs(moveCost) > 0.0001:
-                            self.StoreBestSwapMove(firstRouteIndex, secondRouteIndex, firstNodeIndex, secondNodeIndex, moveCost, costChangeFirstRoute, costChangeSecondRoute, sm)
+                            costChangeFirstRoute = costAdded1 - costRemoved1
+                            costChangeSecondRoute = costAdded2 - costRemoved2
 
-        # Return the updated solution move
-        return sm
+                            moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2)
+                            moveCost_penalized = costAdded1_penalized + costAdded2_penalized - (
+                                        costRemoved1_penalized + costRemoved2_penalized)
+
+                        # Εισαγωγή της κίνησης στο heap
+                        if moveCost_penalized < sm.moveCost_penalized:
+                            heapq.heappush(heap, (
+                            moveCost_penalized, firstRouteIndex, secondRouteIndex, firstNodeIndex, secondNodeIndex,
+                            moveCost, moveCost_penalized, costChangeFirstRoute, costChangeSecondRoute))
+
+        
+        if heap:
+            best_move = heapq.heappop(heap)
+            
+            self.StoreBestSwapMove(best_move[1], best_move[2], best_move[3], best_move[4], best_move[5], best_move[6],
+                                   best_move[7], best_move[8], sm)
+            return best_move  # Επιστροφή της καλύτερης κίνησης
+
+        return None
 
     def StoreBestSwapMove(self, firstRouteIndex, secondRouteIndex, firstNodeIndex, secondNodeIndex, moveCost, costChangeFirstRoute, costChangeSecondRoute, sm):
         sm.positionOfFirstRoute = firstRouteIndex
